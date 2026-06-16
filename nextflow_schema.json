@@ -1,0 +1,94 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://raw.githubusercontent.com/YOUR_ORG/og-b2bpca/main/nextflow_schema.json",
+    "title": "og-b2bpca pipeline parameters",
+    "description": "Detect structural-dynamic clusters within orthogroups using b2bTools and PCA.",
+    "type": "object",
+    "defs": {
+        "input_output_options": {
+            "title": "Input/output options",
+            "type": "object",
+            "fa_icon": "fas fa-terminal",
+            "description": "Define where the pipeline should find OG FASTA files and save output data.",
+            "required": ["og_dir", "outdir"],
+            "properties": {
+                "og_dir": {
+                    "type": "string",
+                    "format": "directory-path",
+                    "exists": true,
+                    "description": "Path to folder containing OG FASTA files (*.fa).",
+                    "help_text": "Example: 30_reOrthofinder_rootAlloC/Results_Aug05/Orthogroup_Sequences",
+                    "fa_icon": "fas fa-folder-open"
+                },
+                "outdir": {
+                    "type": "string",
+                    "format": "directory-path",
+                    "description": "Output directory for all results.",
+                    "default": "results",
+                    "fa_icon": "fas fa-folder-open"
+                }
+            }
+        },
+        "pipeline_options": {
+            "title": "Pipeline options",
+            "type": "object",
+            "fa_icon": "fas fa-cog",
+            "description": "Parameters controlling pipeline behaviour.",
+            "properties": {
+                "min_seqs": {
+                    "type": "integer",
+                    "default": 10,
+                    "minimum": 2,
+                    "description": "Minimum number of sequences an OG must have to be processed.",
+                    "fa_icon": "fas fa-filter"
+                },
+                "b2b_batch_size": {
+                    "type": "integer",
+                    "default": 1000,
+                    "minimum": 10,
+                    "description": "Number of sequences per b2bTools batch job.",
+                    "fa_icon": "fas fa-layer-group"
+                },
+                "chunk_size": {
+                    "type": "integer",
+                    "default": 50,
+                    "minimum": 1,
+                    "description": "Number of OG files to process together in a chunk for MAFFT and MMseqs2.",
+                    "fa_icon": "fas fa-layer-group"
+                }
+            }
+        },
+        "generic_options": {
+            "title": "Generic options",
+            "type": "object",
+            "fa_icon": "fas fa-file-import",
+            "description": "Less common options for the pipeline.",
+            "properties": {
+                "help": {
+                    "type": "boolean",
+                    "description": "Display help text.",
+                    "fa_icon": "fas fa-question-circle",
+                    "hidden": true
+                },
+                "validate_params": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Boolean whether to validate parameters against the schema at runtime.",
+                    "fa_icon": "fas fa-check-square",
+                    "hidden": true
+                },
+                "monochrome_logs": {
+                    "type": "boolean",
+                    "description": "Do not use coloured log outputs.",
+                    "fa_icon": "fas fa-palette",
+                    "hidden": true
+                }
+            }
+        }
+    },
+    "allOf": [
+        { "$ref": "#/defs/input_output_options" },
+        { "$ref": "#/defs/pipeline_options" },
+        { "$ref": "#/defs/generic_options" }
+    ]
+}

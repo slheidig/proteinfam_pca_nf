@@ -1,0 +1,23 @@
+nextflow_pipeline {
+
+    name "Test Workflow main.nf"
+    script "../main.nf"
+    process "*"
+
+    test("Run test profile") {
+        config "./nextflow.config"
+
+        when {
+            params {
+                outdir = "test_results"
+            }
+        }
+
+        then {
+            assertAll(
+                { assert workflow.success },
+                { assert snapshot(workflow.trace).match() }
+            )
+        }
+    }
+}
