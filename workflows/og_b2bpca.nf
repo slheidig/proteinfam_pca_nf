@@ -64,6 +64,13 @@ workflow OG_B2BPCA {
     )
     ch_versions = ch_versions.mix(ALIGNMENT_DISTANCES.out.versions)
 
+    // === DEBUG: Inspect ALIGNMENT_DISTANCES output ===
+    ALIGNMENT_DISTANCES.out.distance_matrices
+        .map { meta, matrix_file ->
+            log.info "[DEBUG] ALIGNMENT_DISTANCES emitted: meta=${meta}, matrix_file=${matrix_file} (exists: ${matrix_file.exists()})"
+            [meta, matrix_file]
+        }
+        .set { ch_distance_matrices_debug }
     //
     // SUBWORKFLOW: PCA + silhouette clustering + summary bar chart
     //

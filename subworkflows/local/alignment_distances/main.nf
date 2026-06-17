@@ -24,38 +24,18 @@ workflow ALIGNMENT_DISTANCES {
     main:
     ch_versions = Channel.empty()
 
-    // === CRITICAL DEBUG: Check input channels ===
-    def count_fastas = 0
-    def count_b2b = 0
-
-    ch_og_fastas
-        .map { meta, fasta ->
-            count_fastas++
-            log.info "[ALIGNMENT_DISTANCES] ch_og_fastas: ${meta.id} -> ${fasta} (exists: ${fasta.exists()})"
-            [meta, fasta]
-        }
-
-    ch_og_b2b
-        .map { meta, b2b ->
-            count_b2b++
-            log.info "[ALIGNMENT_DISTANCES] ch_og_b2b: ${meta.id} -> ${b2b} (exists: ${b2b.exists()})"
-            [meta, b2b]
-        }
-
-    log.info "[ALIGNMENT_DISTANCES] Received ${count_fastas} FASTA files and ${count_b2b} B2B files"
-    //
+   //
     // Global MSA — MAFFT with --reorder (run per OG)
     //
     MAFFT(ch_og_fastas)
     ch_versions = ch_versions.mix(MAFFT.out.versions)
 
     //
-    // MAFFT output is already per-OG, just pass through
+    // MAFFT output: preserve original meta for join compatibility
     //
     ch_mafft_out = MAFFT.out.alignment
         .map { meta, aln_file ->
-            def og_id = aln_file.baseName.replace('.aln.fa', '')
-            [ [id: og_id], aln_file ]
+            [ meta, aln_file ]
         }
 
     //
@@ -65,12 +45,11 @@ workflow ALIGNMENT_DISTANCES {
     ch_versions = ch_versions.mix(MMSEQS2_EASYSEARCH.out.versions)
 
     //
-    // MMSEQS2 output is already per-OG, just pass through
+    // MMSEQS2 output: preserve original meta for join compatibility
     //
     ch_mmseqs_out = MMSEQS2_EASYSEARCH.out.pairali
         .map { meta, pairali_file ->
-            def og_id = pairali_file.baseName.replace('.pairali.tsv', '')
-            [ [id: og_id], pairali_file ]
+            [ meta, pairali_file ]
         }
 
     //

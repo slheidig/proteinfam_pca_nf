@@ -331,7 +331,7 @@ def main() -> int:
                 nums, names = map_categories_with_names(ext_series_valid)
                 n_ext = len(names)
 
-                if n_ext > 1 and valid_count >= 2:
+                if 2 <= n_ext < valid_count:
                     ari = adjusted_rand_score(labels[mask_arr], nums)
                     sil_ext = silhouette_score(x[mask_arr], nums)
                     sil_ext_pval = silhouette_pvalue(x[mask_arr], nums, sil_ext, n_perm=args.n_perm)
