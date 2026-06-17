@@ -7,6 +7,7 @@
 include { B2B_PREDICTIONS     } from '../subworkflows/local/b2b_predictions/main'
 include { ALIGNMENT_DISTANCES } from '../subworkflows/local/alignment_distances/main'
 include { PCA_ANALYSIS        } from '../subworkflows/local/pca_analysis/main'
+include { SEQUENCE_IDENTITY_ANALYSIS } from '../subworkflows/local/sequence_identity_analysis/main'
 
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -42,11 +43,6 @@ workflow OG_B2BPCA {
             }
             return true
         }
-        // DEBUG: Inspect what passes the filter
-        .map { meta, fasta ->
-            log.info "[FILTERED] OG: ${meta.id} | File: ${fasta} | Exists: ${fasta.exists()}"
-            [meta, fasta]
-        }
 
     //
     // SUBWORKFLOW: compute b2bTools predictions across all OGs in global batches
@@ -64,19 +60,27 @@ workflow OG_B2BPCA {
     )
     ch_versions = ch_versions.mix(ALIGNMENT_DISTANCES.out.versions)
 
-    // === DEBUG: Inspect ALIGNMENT_DISTANCES output ===
-    ALIGNMENT_DISTANCES.out.distance_matrices
-        .map { meta, matrix_file ->
-            log.info "[DEBUG] ALIGNMENT_DISTANCES emitted: meta=${meta}, matrix_file=${matrix_file} (exists: ${matrix_file.exists()})"
-            [meta, matrix_file]
-        }
-        .set { ch_distance_matrices_debug }
-    //
+   //
     // SUBWORKFLOW: PCA + silhouette clustering + summary bar chart
     //
     PCA_ANALYSIS(ALIGNMENT_DISTANCES.out.distance_matrices)
     ch_versions = ch_versions.mix(PCA_ANALYSIS.out.versions)
+    //
+    // SUBWORKFLOW: Sequence identity matrices and heatmaps from MAFFT and MMseqs2
+    // This is a separate subworkflow that reuses MAFFT and MMseqs2 outputs
+    // It is b2b backbone independent and provides additional information for data understanding
+    // Note: Uses distance matrix sequence ordering and cluster labels to organize heatmaps consistently
+    //
+    SEQUENCE_IDENTITY_ANALYSIS(
+        ALIGNMENT_DISTANCES.out.mafft_alignments,
+        ALIGNMENT_DISTANCES.out.mmseqs_pairali,
+        PCA_ANALYSIS.out.cluster_labels,
+        ALIGNMENT_DISTANCES.out.distance_matrices
+    )
+    ch_versions = ch_versions.mix(SEQUENCE_IDENTITY_ANALYSIS.out.versions)
 
     emit:
     versions = ch_versions
+    identity_matrices = SEQUENCE_IDENTITY_ANALYSIS.out.identity_matrices
+    identity_heatmaps = SEQUENCE_IDENTITY_ANALYSIS.out.identity_heatmaps
 }

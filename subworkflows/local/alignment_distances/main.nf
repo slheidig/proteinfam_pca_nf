@@ -79,5 +79,7 @@ workflow ALIGNMENT_DISTANCES {
 
     emit:
     distance_matrices = B2B_DISTANCE_MATRIX.out.matrix  // channel: [ val(meta), path(*_b2b_dist.csv) ]
+    mafft_alignments  = ch_mafft_out                       // channel: [ val(meta), path(*_aln.fa) ]
+    mmseqs_pairali    = ch_mmseqs_out                     // channel: [ val(meta), path(*_pairali.tsv) ]
     versions          = ch_versions
 }
