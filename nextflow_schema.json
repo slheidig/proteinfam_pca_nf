@@ -48,13 +48,6 @@
                     "minimum": 10,
                     "description": "Number of sequences per b2bTools batch job.",
                     "fa_icon": "fas fa-layer-group"
-                },
-                "chunk_size": {
-                    "type": "integer",
-                    "default": 50,
-                    "minimum": 1,
-                    "description": "Number of OG files to process together in a chunk for MAFFT and MMseqs2.",
-                    "fa_icon": "fas fa-layer-group"
                 }
             }
         },

@@ -14,7 +14,7 @@ process MMSEQS2_EASYSEARCH {
     container 'quay.io/biocontainers/mmseqs2:15.6f452--pl5321h6a68c12_2'
 
     input:
-    tuple val(meta), path(fastas)
+    tuple val(meta), path(fasta)
 
     output:
     tuple val(meta), path("*.pairali.tsv"), emit: pairali
@@ -22,21 +22,18 @@ process MMSEQS2_EASYSEARCH {
 
     script:
     def args = task.ext.args ?: ''
+    def og_id = fasta.baseName
     """
     mkdir -p tmp
 
-    for fasta in ${fastas}; do
-        base=\$(basename "$fasta")
-        og_id="\${base%.*}"
-        mmseqs easy-search \
-            "$fasta" \
-            "$fasta" \
-            "${og_id}.pairali.tsv" \
-            tmp \
-            --format-output "query,target,qaln,taln,qstart,qend,tstart,tend,qlen,tlen,pident,evalue" \
-            --threads ${task.cpus} \
-            ${args}
-    done
+    mmseqs easy-search \
+        "${fasta}" \
+        "${fasta}" \
+        "${og_id}.pairali.tsv" \
+        tmp \
+        --format-output "query,target,qaln,taln,qstart,qend,tstart,tend,qlen,tlen,pident,evalue" \
+        --threads ${task.cpus} \
+        ${args}
 
     rm -rf tmp
 

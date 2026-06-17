@@ -10,7 +10,7 @@ process MAFFT {
     container 'quay.io/biocontainers/mafft:7.525--h031d066_1'
 
     input:
-    tuple val(meta), path(fastas)
+    tuple val(meta), path(fasta)
 
     output:
     tuple val(meta), path("*.aln.fa"), emit: alignment
@@ -18,12 +18,9 @@ process MAFFT {
 
     script:
     def args = task.ext.args ?: '--reorder --auto'
+    def og_id = fasta.baseName
     """
-    for fasta in ${fastas}; do
-        base=\$(basename "\$fasta")
-        og_id="\${base%.*}"
-        mafft ${args} --thread ${task.cpus} "\$fasta" > "\${og_id}.aln.fa"
-    done
+    mafft ${args} --thread ${task.cpus} "${fasta}" > "${og_id}.aln.fa"
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":

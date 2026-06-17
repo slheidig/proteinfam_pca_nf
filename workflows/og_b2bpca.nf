@@ -60,8 +60,7 @@ workflow OG_B2BPCA {
     //
     ALIGNMENT_DISTANCES(
         ch_filtered,
-        B2B_PREDICTIONS.out.og_b2b,
-        params.chunk_size
+        B2B_PREDICTIONS.out.og_b2b
     )
     ch_versions = ch_versions.mix(ALIGNMENT_DISTANCES.out.versions)
 

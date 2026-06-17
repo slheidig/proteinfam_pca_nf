@@ -19,8 +19,7 @@ workflow ALIGNMENT_DISTANCES {
 
     take:
     ch_og_fastas    // channel: [ val(meta), path(fasta) ]
-    ch_og_b2b       // channel: [ val(meta), path(*_b2b.tsv) ]
-    chunk_size 
+    ch_og_b2b       // channel: [ val(meta), path(*_b2b.tsv) ] 
 
     main:
     ch_versions = Channel.empty()
@@ -45,64 +44,33 @@ workflow ALIGNMENT_DISTANCES {
 
     log.info "[ALIGNMENT_DISTANCES] Received ${count_fastas} FASTA files and ${count_b2b} B2B files"
     //
-    // Global MSA — MAFFT with --reorder (run in chunks of params.chunk_size)
+    // Global MSA — MAFFT with --reorder (run per OG)
     //
-    ch_mafft_chunks = ch_og_fastas
-        .buffer(chunk_size)
-        .map { chunk ->
-            def meta = [id: "mafft_chunk_${chunk.hashCode().abs() % 1000000}"]
-            def fastas = chunk.collect { it[1] }
-            [meta, fastas]
-        }// DEBUG: Verify chunks were created
-        .map { meta, fastas ->
-            log.info "[MAFFT_CHUNKS] Created chunk ${meta.id} with ${fastas.size()} FASTAs"
-            [meta, fastas]
-        }
-    
-    MAFFT(ch_mafft_chunks)
+    MAFFT(ch_og_fastas)
     ch_versions = ch_versions.mix(MAFFT.out.versions)
 
     //
-    // Flatten MAFFT outputs back to per-OG for downstream joins
+    // MAFFT output is already per-OG, just pass through
     //
     ch_mafft_out = MAFFT.out.alignment
-        .flatMap { meta, aln_files ->
-            // aln_files is a list of path objects
-            def files = aln_files instanceof List ? aln_files : [aln_files]
-            files.collect { aln_file ->
-                def og_id = aln_file.baseName.replace('.aln.fa', '')
-                [ [id: og_id], aln_file ]
-            }
+        .map { meta, aln_file ->
+            def og_id = aln_file.baseName.replace('.aln.fa', '')
+            [ [id: og_id], aln_file ]
         }
 
     //
-    // Pairwise alignment — MMseqs2 easy-search all-vs-all per OG (run in chunks)
+    // Pairwise alignment — MMseqs2 easy-search all-vs-all per OG
     //
-    ch_mmseqs_chunks = ch_og_fastas
-        .buffer(chunk_size)
-        .map { chunk ->
-            def meta = [id: "mmseqs_chunk_${chunk.hashCode().abs() % 1000000}"]
-            def fastas = chunk.collect { it[1] }
-            [meta, fastas]
-        }// DEBUG: Verify chunks were created
-        .map { meta, fastas ->
-            log.info "[MMSEQS_CHUNKS] Created chunk ${meta.id} with ${fastas.size()} FASTAs"
-            [meta, fastas]
-        }
-    
-    MMSEQS2_EASYSEARCH(ch_mmseqs_chunks)
+    MMSEQS2_EASYSEARCH(ch_og_fastas)
     ch_versions = ch_versions.mix(MMSEQS2_EASYSEARCH.out.versions)
 
     //
-    // Flatten MMSEQS2 outputs back to per-OG for downstream joins
+    // MMSEQS2 output is already per-OG, just pass through
     //
     ch_mmseqs_out = MMSEQS2_EASYSEARCH.out.pairali
-        .flatMap { meta, pairali_files ->
-            def files = pairali_files instanceof List ? pairali_files : [pairali_files]
-            files.collect { pairali_file ->
-                def og_id = pairali_file.baseName.replace('.pairali.tsv', '')
-                [ [id: og_id], pairali_file ]
-            }
+        .map { meta, pairali_file ->
+            def og_id = pairali_file.baseName.replace('.pairali.tsv', '')
+            [ [id: og_id], pairali_file ]
         }
 
     //
