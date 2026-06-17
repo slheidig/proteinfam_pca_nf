@@ -8,7 +8,7 @@
 */
 
 process REATTACH_B2B {
-    label 'process_medium'
+    label 'process_highmem'
     container 'docker.io/slheidig/og_b2b_pca:latest'
 
     input:

@@ -22,14 +22,27 @@ workflow OG_B2BPCA {
     //
     // Parse OG FASTA files directly from params.og_dir/*.fa
     //
-    ch_og_fastas = Channel
-        .fromPath("${params.og_dir}/*.fa", checkIfExists: true)
+    //ch_og_fastas = Channel
+    //    .fromPath("${params.og_dir}/*.fa", checkIfExists: true)
+    //    .map { fasta ->
+    //        def og_id = fasta.baseName
+    //        def meta  = [id: og_id]
+    //        [meta, fasta]
+    //    }
+
+    def og_dir = file(params.og_dir)
+    def fa_files = og_dir.list().findAll { it.toString().endsWith('.fa') }.collect { og_dir / it }
+    log.info "Creating channel from ${fa_files.size()} .fa files"
+
+    ch_og_fastas = Channel.from(fa_files)
         .map { fasta ->
             def og_id = fasta.baseName
             def meta  = [id: og_id]
             [meta, fasta]
         }
-
+    // log.info "Found ${fa_files.size()} .fa files: ${fa_files}"
+    
+    
     //
     // Filter OGs with fewer than params.min_seqs sequences
     //

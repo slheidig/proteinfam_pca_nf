@@ -25,14 +25,18 @@ process MMSEQS2_EASYSEARCH {
     """
     mkdir -p tmp
 
-    mmseqs easy-search \\
-        ${fasta} \\
-        ${fasta} \\
-        ${meta.id}.pairali.tsv \\
-        tmp \\
-        --format-output "query,target,qaln,taln,qstart,qend,tstart,tend,qlen,tlen,pident,evalue" \\
-        --threads ${task.cpus} \\
-        ${args}
+    for fasta in ${fastas}; do
+        base=\$(basename "$fasta")
+        og_id="\${base%.*}"
+        mmseqs easy-search \
+            "$fasta" \
+            "$fasta" \
+            "${og_id}.pairali.tsv" \
+            tmp \
+            --format-output "query,target,qaln,taln,qstart,qend,tstart,tend,qlen,tlen,pident,evalue" \
+            --threads ${task.cpus} \
+            ${args}
+    done
 
     rm -rf tmp
 

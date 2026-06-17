@@ -8,7 +8,7 @@
 */
 
 process POOL_SEQUENCES {
-    label 'process_medium'
+    label 'process_single'
     container 'docker.io/slheidig/og_b2b_pca:latest'
 
     input:
