@@ -20,18 +20,42 @@ workflow ALIGNMENT_DISTANCES {
     take:
     ch_og_fastas    // channel: [ val(meta), path(fasta) ]
     ch_og_b2b       // channel: [ val(meta), path(*_b2b.tsv) ]
+    chunk_size 
 
     main:
     ch_versions = Channel.empty()
 
+    // === CRITICAL DEBUG: Check input channels ===
+    def count_fastas = 0
+    def count_b2b = 0
+
+    ch_og_fastas
+        .map { meta, fasta ->
+            count_fastas++
+            log.info "[ALIGNMENT_DISTANCES] ch_og_fastas: ${meta.id} -> ${fasta} (exists: ${fasta.exists()})"
+            [meta, fasta]
+        }
+
+    ch_og_b2b
+        .map { meta, b2b ->
+            count_b2b++
+            log.info "[ALIGNMENT_DISTANCES] ch_og_b2b: ${meta.id} -> ${b2b} (exists: ${b2b.exists()})"
+            [meta, b2b]
+        }
+
+    log.info "[ALIGNMENT_DISTANCES] Received ${count_fastas} FASTA files and ${count_b2b} B2B files"
     //
     // Global MSA — MAFFT with --reorder (run in chunks of params.chunk_size)
     //
     ch_mafft_chunks = ch_og_fastas
-        .buffer(params.chunk_size)
+        .buffer(chunk_size)
         .map { chunk ->
             def meta = [id: "mafft_chunk_${chunk.hashCode().abs() % 1000000}"]
             def fastas = chunk.collect { it[1] }
+            [meta, fastas]
+        }// DEBUG: Verify chunks were created
+        .map { meta, fastas ->
+            log.info "[MAFFT_CHUNKS] Created chunk ${meta.id} with ${fastas.size()} FASTAs"
             [meta, fastas]
         }
     
@@ -55,10 +79,14 @@ workflow ALIGNMENT_DISTANCES {
     // Pairwise alignment — MMseqs2 easy-search all-vs-all per OG (run in chunks)
     //
     ch_mmseqs_chunks = ch_og_fastas
-        .buffer(params.chunk_size)
+        .buffer(chunk_size)
         .map { chunk ->
             def meta = [id: "mmseqs_chunk_${chunk.hashCode().abs() % 1000000}"]
             def fastas = chunk.collect { it[1] }
+            [meta, fastas]
+        }// DEBUG: Verify chunks were created
+        .map { meta, fastas ->
+            log.info "[MMSEQS_CHUNKS] Created chunk ${meta.id} with ${fastas.size()} FASTAs"
             [meta, fastas]
         }
     

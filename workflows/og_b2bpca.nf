@@ -19,17 +19,6 @@ workflow OG_B2BPCA {
     main:
     ch_versions = Channel.empty()
 
-    //
-    // Parse OG FASTA files directly from params.og_dir/*.fa
-    //
-    //ch_og_fastas = Channel
-    //    .fromPath("${params.og_dir}/*.fa", checkIfExists: true)
-    //    .map { fasta ->
-    //        def og_id = fasta.baseName
-    //        def meta  = [id: og_id]
-    //        [meta, fasta]
-    //    }
-
     def og_dir = file(params.og_dir)
     def fa_files = og_dir.list().findAll { it.toString().endsWith('.fa') }.collect { og_dir / it }
     log.info "Creating channel from ${fa_files.size()} .fa files"
@@ -40,9 +29,7 @@ workflow OG_B2BPCA {
             def meta  = [id: og_id]
             [meta, fasta]
         }
-    // log.info "Found ${fa_files.size()} .fa files: ${fa_files}"
-    
-    
+  
     //
     // Filter OGs with fewer than params.min_seqs sequences
     //
@@ -54,6 +41,11 @@ workflow OG_B2BPCA {
                 return false
             }
             return true
+        }
+        // DEBUG: Inspect what passes the filter
+        .map { meta, fasta ->
+            log.info "[FILTERED] OG: ${meta.id} | File: ${fasta} | Exists: ${fasta.exists()}"
+            [meta, fasta]
         }
 
     //
@@ -68,7 +60,8 @@ workflow OG_B2BPCA {
     //
     ALIGNMENT_DISTANCES(
         ch_filtered,
-        B2B_PREDICTIONS.out.og_b2b
+        B2B_PREDICTIONS.out.og_b2b,
+        params.chunk_size
     )
     ch_versions = ch_versions.mix(ALIGNMENT_DISTANCES.out.versions)
 
