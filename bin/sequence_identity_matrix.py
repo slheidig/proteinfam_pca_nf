@@ -45,6 +45,8 @@ def parse_args() -> argparse.Namespace:
                   help="Optional CSV file with cluster labels (sequence_id,cluster columns)")
     p.add_argument("--ref-matrix", default=None,
                   help="Optional reference distance matrix CSV to use for sequence ordering")
+    p.add_argument("--sequence-order", default=None,
+                  help="Optional file with sequence order (one sequence ID per line) to use for heatmap sorting")
     return p.parse_args()
 
 
@@ -191,15 +193,35 @@ def build_matrix(
 def plot_identity_heatmap(
     matrix: pd.DataFrame,
     labels: np.ndarray | None,
+    sequence_order: list[str] | None,
     og_id: str,
     mode: str,
     out_path: str,
 ) -> None:
-    """Save a heatmap of the identity matrix with rows/cols sorted by cluster label.
+    """Save a heatmap of the identity matrix with rows/cols sorted by cluster label or custom order.
     
     NaN values are masked and shown in grey.
+    
+    Args:
+        matrix: The identity matrix DataFrame
+        labels: Optional cluster labels for sorting
+        sequence_order: Optional explicit sequence order (overrides labels)
+        og_id: Orthogroup ID
+        mode: Alignment mode
+        out_path: Output file path for the heatmap
     """
-    if labels is not None:
+    if sequence_order is not None:
+        # Use the explicit sequence order
+        # Filter to only include sequences that are in the matrix
+        sorted_ids = [sid for sid in sequence_order if sid in matrix.index]
+        # Add any missing sequences from matrix at the end
+        for sid in matrix.index:
+            if sid not in sorted_ids:
+                sorted_ids.append(sid)
+        
+        sorted_vals = matrix.reindex(index=sorted_ids, columns=sorted_ids).values
+        sorted_labels = None
+    elif labels is not None:
         order = np.argsort(labels, kind="stable")
         sorted_vals = matrix.values[np.ix_(order, order)]
         sorted_ids = [matrix.index[i] for i in order]
@@ -274,6 +296,35 @@ def load_cluster_labels(path: str, seq_ids: list[str]) -> np.ndarray | None:
         return None
 
 
+def load_sequence_order(path: str, seq_ids: list[str]) -> list[str] | None:
+    """Load sequence order from file (one sequence ID per line).
+    
+    Returns a list of sequence IDs in the desired order.
+    Only includes sequences that are present in seq_ids.
+    """
+    if path is None:
+        return None
+    
+    try:
+        with open(path, "r") as f:
+            # Read all sequence IDs from the file, stripping whitespace
+            file_seq_ids = [line.strip() for line in f if line.strip()]
+        
+        # Filter to only include sequences that are in our seq_ids list
+        # and preserve the order from the file
+        ordered_seqs = [sid for sid in file_seq_ids if sid in seq_ids]
+        
+        # Add any missing sequences at the end (maintaining stability)
+        file_set = set(file_seq_ids)
+        for sid in seq_ids:
+            if sid not in file_set:
+                ordered_seqs.append(sid)
+        
+        return ordered_seqs
+    except Exception:
+        return None
+
+
 def main() -> int:
     args = parse_args()
     
@@ -324,8 +375,17 @@ def main() -> int:
         pair_results = pair_map  # Already in frozenset format
     
     # Determine sequence ordering
-    # Priority: 1) reference matrix, 2) cluster labels, 3) sorted from alignment
-    if args.ref_matrix and Path(args.ref_matrix).exists():
+    # Priority: 1) explicit sequence order file, 2) reference matrix, 3) cluster labels, 4) sorted from alignment
+    sequence_order = None
+    
+    if args.sequence_order and Path(args.sequence_order).exists():
+        # Load explicit sequence order from file
+        sequence_order = load_sequence_order(args.sequence_order, seq_ids_from_ali)
+        if sequence_order:
+            seq_ids = sequence_order
+        else:
+            seq_ids = seq_ids_from_ali
+    elif args.ref_matrix and Path(args.ref_matrix).exists():
         # Use the row/column order from the reference distance matrix
         try:
             ref_df = pd.read_csv(args.ref_matrix, index_col=0)
@@ -354,16 +414,20 @@ def main() -> int:
     # Build full matrix with the determined sequence order
     matrix = build_matrix(filtered_results, seq_ids, args.mode)
     
-    # Load cluster labels for sorting (if no ref_matrix was used)
+    # Load cluster labels for sorting (if no sequence_order or ref_matrix was used)
     labels = None
-    if not args.ref_matrix:
+    if not args.sequence_order and not args.ref_matrix:
         labels = load_cluster_labels(args.cluster_labels, seq_ids)
     
     # Save matrix CSV
     matrix.to_csv(args.out_matrix, index=True)
     
     # Generate heatmap
-    plot_identity_heatmap(matrix, labels, args.og_id, args.mode, args.out_heatmap)
+    # If we have an explicit sequence_order, use it; otherwise use cluster labels
+    if sequence_order:
+        plot_identity_heatmap(matrix, None, sequence_order, args.og_id, args.mode, args.out_heatmap)
+    else:
+        plot_identity_heatmap(matrix, labels, None, args.og_id, args.mode, args.out_heatmap)
     
     print(f"Successfully created identity matrix and heatmap for {args.og_id} ({args.mode})")
     return 0

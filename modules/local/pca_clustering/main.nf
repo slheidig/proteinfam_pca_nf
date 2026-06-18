@@ -18,9 +18,10 @@ process PCA_CLUSTERING {
     tuple val(meta), path("${meta.id}_${meta.mode}_heatmap.png"),  emit: heatmap
     tuple val(meta), path("${meta.id}_${meta.mode}_clusters.csv"), emit: cluster_labels
     tuple val(meta), path("${meta.id}_${meta.mode}_pca_meta.csv"), emit: pca_meta
+    tuple val(meta), path("${meta.id}_${meta.mode}_sequence_order.txt"), emit: sequence_order
     path 'versions.yml', emit: versions
 
-    def external_labels_arg = params.external_labels ? "--external-labels ${params.external_labels} \\" : ""
+    def external_labels_arg = params.external_labels ? "--external-labels ${params.external_labels}" : ""
 
     script:
     """
@@ -32,6 +33,7 @@ process PCA_CLUSTERING {
         --out-heatmap  ${meta.id}_${meta.mode}_heatmap.png \\
         --out-clusters ${meta.id}_${meta.mode}_clusters.csv \\
         --out-meta     ${meta.id}_${meta.mode}_pca_meta.csv \\
+        --out-sequence-order ${meta.id}_${meta.mode}_sequence_order.txt \
         ${external_labels_arg}
 
     cat <<-END_VERSIONS > versions.yml
@@ -48,6 +50,7 @@ process PCA_CLUSTERING {
     touch ${meta.id}_${meta.mode}_heatmap.png
     touch ${meta.id}_${meta.mode}_clusters.csv
     touch ${meta.id}_${meta.mode}_pca_meta.csv
+    touch ${meta.id}_${meta.mode}_sequence_order.txt
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
         python: 3.12.0

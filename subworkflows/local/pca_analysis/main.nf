@@ -39,5 +39,6 @@ workflow PCA_ANALYSIS {
     pca_plots      = PCA_CLUSTERING.out.pca_plot       // channel: [ val(meta), path(*_pca.png) ]
     heatmaps       = PCA_CLUSTERING.out.heatmap        // channel: [ val(meta), path(*_heatmap.png) ]
     cluster_labels = PCA_CLUSTERING.out.cluster_labels  // channel: [ val(meta), path(*.csv) ]
+    sequence_order = PCA_CLUSTERING.out.sequence_order // channel: [ val(meta), path(*_sequence_order.txt) ]
     versions       = ch_versions
 }

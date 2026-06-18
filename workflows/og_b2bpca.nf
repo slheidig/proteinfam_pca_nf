@@ -75,7 +75,8 @@ workflow OG_B2BPCA {
         ALIGNMENT_DISTANCES.out.mafft_alignments,
         ALIGNMENT_DISTANCES.out.mmseqs_pairali,
         PCA_ANALYSIS.out.cluster_labels,
-        ALIGNMENT_DISTANCES.out.distance_matrices
+        ALIGNMENT_DISTANCES.out.distance_matrices,
+        PCA_ANALYSIS.out.sequence_order
     )
     ch_versions = ch_versions.mix(SEQUENCE_IDENTITY_ANALYSIS.out.versions)
 

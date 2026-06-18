@@ -18,7 +18,7 @@ process SEQUENCE_IDENTITY_MATRIX {
     errorStrategy 'ignore'
 
     input:
-    tuple val(meta), path(ali_file), path(cluster_csv), val(mode), path(sequence_identity_matrix_script), path(ref_matrix)
+    tuple val(meta), path(ali_file), path(cluster_csv), val(mode), path(sequence_identity_matrix_script), path(ref_matrix), path(sequence_order)
 
     output:
     tuple val(meta), path("${meta.id}_${mode}_identity_matrix.csv")  , emit: matrix
@@ -28,6 +28,7 @@ process SEQUENCE_IDENTITY_MATRIX {
     script:
     def cluster_arg = cluster_csv ? "--cluster-labels ${cluster_csv}" : ""
     def ref_arg = ref_matrix ? "--ref-matrix ${ref_matrix}" : ""
+    def seq_order_arg = sequence_order ? "--sequence-order ${sequence_order}" : ""
     
     """
     
@@ -36,9 +37,10 @@ process SEQUENCE_IDENTITY_MATRIX {
         --mode        ${mode} \\
         --og-id       ${meta.id} \\
         --out-matrix  ${meta.id}_${mode}_identity_matrix.csv \\
-        --out-heatmap ${meta.id}_${mode}_identity_heatmap.png \\
-        ${cluster_arg} \\
-        ${ref_arg}
+        --out-heatmap ${meta.id}_${mode}_identity_heatmap.png \
+        ${cluster_arg} \
+        ${ref_arg} \
+        ${seq_order_arg}
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":

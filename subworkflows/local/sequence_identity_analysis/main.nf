@@ -29,6 +29,7 @@ workflow SEQUENCE_IDENTITY_ANALYSIS {
     ch_mmseqs_pairali        // channel: [ val(meta), path(*.pairali.tsv) ] - meta has id only
     ch_cluster_labels        // channel: [ val(meta), path(*_clusters.csv) ] - meta has id and mode, optional
     ch_distance_matrices    // channel: [ val(meta), path(*_b2b_dist.csv) ] - optional, for sequence ordering
+    ch_sequence_order       // channel: [ val(meta), path(*_sequence_order.txt) ] - sequence order from PCA
 
     main:
     ch_versions = Channel.empty()
@@ -56,6 +57,15 @@ workflow SEQUENCE_IDENTITY_ANALYSIS {
         .map { meta, dist_file ->
             def key = "${meta.id}:${meta.mode}"
             [ key, dist_file ]
+        }
+    
+    //
+    // Build a map of sequence order files by og_id and mode
+    //
+    ch_sequence_order_map = ch_sequence_order
+        .map { meta, seq_order_file ->
+            def key = "${meta.id}:${meta.mode}"
+            [ key, seq_order_file ]
         }
     
     //
@@ -112,7 +122,7 @@ workflow SEQUENCE_IDENTITY_ANALYSIS {
     }
     
     //
-    // Join identity inputs with distance matrices for reference ordering
+    // Join identity inputs with distance matrices and sequence order for reference ordering
     //
     ch_identity_with_ref = ch_identity_inputs
         .map { meta, aln_file, cluster_csv, mode ->
@@ -121,15 +131,17 @@ workflow SEQUENCE_IDENTITY_ANALYSIS {
         }
         .join(ch_distance_map)
         .map { key, meta, aln_file, cluster_csv, mode, ref_matrix ->
-            [ meta, aln_file, cluster_csv, mode, ref_matrix ]
+            [ key, meta, aln_file, cluster_csv, mode, ref_matrix ]
+        }
+        .join(ch_sequence_order_map, remainder: true)
+        .map { key, meta, aln_file, cluster_csv, mode, ref_matrix, seq_order_file ->
+            [ meta, aln_file, cluster_csv, mode, script_file, ref_matrix, seq_order_file ]
         }
 
     //
     // Compute identity matrices and heatmaps
     //
-    SEQUENCE_IDENTITY_MATRIX(ch_identity_with_ref.map { meta, aln_file, cluster_csv, mode, ref_matrix ->
-        [ meta, aln_file, cluster_csv, mode, script_file, ref_matrix ]
-    })
+    SEQUENCE_IDENTITY_MATRIX(ch_identity_with_ref)
     ch_versions = ch_versions.mix(SEQUENCE_IDENTITY_MATRIX.out.versions)
 
     emit:

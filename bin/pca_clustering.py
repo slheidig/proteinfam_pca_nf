@@ -24,6 +24,8 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--out-clusters", required=True)
     p.add_argument("--out-meta", required=True)
     p.add_argument("--out-heatmap", required=True)
+    p.add_argument("--out-sequence-order", required=True,
+                   help="Output file path for sequence order used in heatmap")
     p.add_argument("--external-labels", default=None,
                    help="TSV file with columns og_id,gene_id,<label1>,<label2>,... for external labels")
     p.add_argument("--summary-dir", default="test_results/summary",
@@ -58,14 +60,24 @@ def plot_heatmap(
     og_id: str,
     mode: str,
     out_path: str,
+    out_sequence_order_path: str | None = None,
 ) -> None:
-    """Save a heatmap of the distance matrix with rows/cols sorted by cluster label."""
+    """Save a heatmap of the distance matrix with rows/cols sorted by cluster label.
+    
+    If out_sequence_order_path is provided, also saves the sequence order to that file.
+    """
     order = np.argsort(labels, kind="stable")
     sorted_vals = mat.values[np.ix_(order, order)]
     # Mask NaN values so they are rendered in a distinct color (grey)
     masked_vals = np.ma.masked_invalid(sorted_vals)
     sorted_ids = [mat.index[i] for i in order]
     sorted_labels = labels[order]
+    
+    # Save sequence order to file if requested
+    if out_sequence_order_path is not None:
+        with open(out_sequence_order_path, "w") as f:
+            for sid in sorted_ids:
+                f.write(f"{sid}\n")
 
     n = len(sorted_ids)
     size = max(5, n * 0.35)
@@ -423,7 +435,7 @@ def main() -> int:
 
     # Heatmap of the distance matrix: use the raw matrix so original NaNs
     # are visible and will be masked (shown in grey).
-    plot_heatmap(mat_raw, labels, args.og_id, args.mode, args.out_heatmap)
+    plot_heatmap(mat_raw, labels, args.og_id, args.mode, args.out_heatmap, args.out_sequence_order)
 
     return 0
 
