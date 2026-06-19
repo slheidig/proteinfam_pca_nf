@@ -39,7 +39,7 @@ workflow SEQUENCE_IDENTITY_ANALYSIS {
     //
     ch_mafft_with_mode = ch_mafft_alignments
         .map { meta, aln_file ->
-            [ meta + [mode: 'mafft'], aln_file ]
+            [ meta.plus([mode: 'mafft']), aln_file ]
         }
 
     //
@@ -47,7 +47,7 @@ workflow SEQUENCE_IDENTITY_ANALYSIS {
     //
     ch_mmseqs_with_mode = ch_mmseqs_pairali
         .map { meta, pairali_file ->
-            [ meta + [mode: 'mmseqs2'], pairali_file ]
+            [ meta.plus([mode: 'mmseqs2']), pairali_file ]
         }
 
     //

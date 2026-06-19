@@ -8,8 +8,6 @@ process MAFFT {
     tag "${meta.id}"
     label 'process_medium'
     container 'quay.io/biocontainers/mafft:7.525--h031d066_1'
-    errorStrategy 'retry'
-    maxRetries 3
     
     input:
     tuple val(meta), path(fasta)

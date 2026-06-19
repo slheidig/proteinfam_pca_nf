@@ -420,6 +420,8 @@ def main() -> int:
         labels = load_cluster_labels(args.cluster_labels, seq_ids)
     
     # Save matrix CSV
+
+    matrix = matrix.round(4)
     matrix.to_csv(args.out_matrix, index=True)
     
     # Generate heatmap

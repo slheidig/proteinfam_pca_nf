@@ -30,7 +30,7 @@ def parse_args() -> argparse.Namespace:
                    help="TSV file with columns og_id,gene_id,<label1>,<label2>,... for external labels")
     p.add_argument("--summary-dir", default="test_results/summary",
                    help="Directory to append per-OG NaN summary CSV (default: test_results/summary)")
-    p.add_argument("--n-perm", type=int, default=999)
+    p.add_argument("--n-perm", type=int, default=99)
     return p.parse_args()
 
 
@@ -110,7 +110,8 @@ def plot_heatmap(
 
     ax.set_title(f"{og_id} | {mode} | distance matrix (sorted by cluster)")
     plt.tight_layout()
-    plt.savefig(out_path, dpi=350)
+    size = max(5, min(n * 0.35, 20)) 
+    plt.savefig(out_path, dpi=250)
     plt.close(fig)
 
 
@@ -222,7 +223,7 @@ def choose_k(x: np.ndarray) -> tuple[int, float]:
     max_k = min(n - 1, 10)
 
     for k in range(2, max_k + 1):
-        km = KMeans(n_clusters=k, random_state=42, n_init=20)
+        km = KMeans(n_clusters=k, random_state=42, n_init=10)
         labels = km.fit_predict(x)
         if len(set(labels)) < 2:
             continue

@@ -21,7 +21,7 @@ workflow PCA_ANALYSIS {
     //
     // PCA + clustering — one job per (OG × alignment-mode) combination
     //
-    PCA_CLUSTERING(ch_distance_matrices)
+    ch_distance_matrices | PCA_CLUSTERING
     ch_versions = ch_versions.mix(PCA_CLUSTERING.out.versions)
 
     //

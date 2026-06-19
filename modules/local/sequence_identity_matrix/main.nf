@@ -15,7 +15,6 @@ process SEQUENCE_IDENTITY_MATRIX {
     tag "${meta.id} [${meta.mode}]"
     label 'process_low'
     container 'docker.io/slheidig/og_b2b_pca:latest'
-    errorStrategy 'ignore'
 
     input:
     tuple val(meta), path(ali_file), path(cluster_csv), val(mode), path(sequence_identity_matrix_script), path(ref_matrix), path(sequence_order)

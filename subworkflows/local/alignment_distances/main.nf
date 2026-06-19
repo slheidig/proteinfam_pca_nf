@@ -52,6 +52,7 @@ workflow ALIGNMENT_DISTANCES {
             [ meta, pairali_file ]
         }
 
+
     //
     // Join b2b TSV with MAFFT alignment (key: meta.id)
     // Augment meta with mode so output filenames and PCA labels are unambiguous.
@@ -59,7 +60,7 @@ workflow ALIGNMENT_DISTANCES {
     ch_b2b_mafft = ch_og_b2b
         .join(ch_mafft_out)
         .map { meta, b2b_tsv, aln_fa ->
-            [ meta + [mode: 'mafft'], b2b_tsv, aln_fa, 'mafft' ]
+            [ meta.plus([mode: 'mafft']), b2b_tsv, aln_fa, 'mafft' ]
         }
 
     //
@@ -68,7 +69,7 @@ workflow ALIGNMENT_DISTANCES {
     ch_b2b_mmseqs = ch_og_b2b
         .join(ch_mmseqs_out)
         .map { meta, b2b_tsv, pairali_tsv ->
-            [ meta + [mode: 'mmseqs2'], b2b_tsv, pairali_tsv, 'mmseqs2' ]
+            [ meta.plus([mode: 'mmseqs2']), b2b_tsv, pairali_tsv, 'mmseqs2' ]
         }
 
     //

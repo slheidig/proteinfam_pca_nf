@@ -8,7 +8,6 @@ process PCA_CLUSTERING {
     tag "${meta.id} [${meta.mode}]"
     label 'process_low'
     container 'docker.io/slheidig/og_b2b_pca:latest'
-    errorStrategy 'ignore'
 
     input:
     tuple val(meta), path(matrix_csv)
