@@ -13,8 +13,8 @@ process PCA_CLUSTERING {
     tuple val(meta), path(matrix_csv)
 
     output:
-    tuple val(meta), path("${meta.id}_${meta.mode}_pca.png"),     emit: pca_plot
-    tuple val(meta), path("${meta.id}_${meta.mode}_heatmap.png"),  emit: heatmap
+    tuple val(meta), path("${meta.id}_${meta.mode}_pca.png"),     optional: true, emit: pca_plot
+    tuple val(meta), path("${meta.id}_${meta.mode}_heatmap.png"),  optional: true, emit: heatmap
     tuple val(meta), path("${meta.id}_${meta.mode}_clusters.csv"), emit: cluster_labels
     tuple val(meta), path("${meta.id}_${meta.mode}_pca_meta.csv"), emit: pca_meta
     tuple val(meta), path("${meta.id}_${meta.mode}_sequence_order.txt"), emit: sequence_order

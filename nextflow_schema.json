@@ -48,6 +48,19 @@
                     "minimum": 10,
                     "description": "Number of sequences per b2bTools batch job.",
                     "fa_icon": "fas fa-layer-group"
+                },
+                "aligned": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Input FASTAs are already aligned. Skip filtering and alignment steps.",
+                    "fa_icon": "fas fa-align-center"
+                },
+                "distance_type": {
+                    "type": "string",
+                    "default": "b2b_distance",
+                    "enum": ["b2b_distance", "seq_distance"],
+                    "description": "Type of distance matrix for PCA: b2b backbone or sequence identity.",
+                    "fa_icon": "fas fa-ruler"
                 }
             }
         },

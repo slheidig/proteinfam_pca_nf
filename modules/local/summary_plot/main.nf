@@ -14,7 +14,7 @@ process SUMMARY_PLOT {
     output:
     path 'cluster_counts_summary.csv', emit: summary_csv
     path 'cluster_count_histogram.csv', emit: histogram_csv
-    path 'cluster_counts_barplot.png', emit: summary_plot
+    path 'cluster_counts_barplot.png', optional: true, emit: summary_plot
     path 'versions.yml'              , emit: versions
 
     script:

@@ -32,17 +32,22 @@ workflow OG_B2BPCA {
         }
   
     //
-    // Filter OGs with fewer than params.min_seqs sequences
+    // Filter OGs with fewer than params.min_seqs sequences (skip if aligned)
     //
-    ch_filtered = ch_og_fastas
-        .filter { meta, fasta ->
-            def count = fasta.countFasta()
-            if (count < params.min_seqs) {
-                log.warn "Skipping ${meta.id}: ${count} sequences (< ${params.min_seqs})"
-                return false
+    if (params.aligned) {
+        ch_filtered = ch_og_fastas
+        log.info "Skipping sequence filtering (aligned=true)"
+    } else {
+        ch_filtered = ch_og_fastas
+            .filter { meta, fasta ->
+                def count = fasta.countFasta()
+                if (count < params.min_seqs) {
+                    log.warn "Skipping ${meta.id}: ${count} sequences (< ${params.min_seqs})"
+                    return false
+                }
+                return true
             }
-            return true
-        }
+    }
 
     //
     // SUBWORKFLOW: compute b2bTools predictions across all OGs in global batches
@@ -63,7 +68,11 @@ workflow OG_B2BPCA {
    //
     // SUBWORKFLOW: PCA + silhouette clustering + summary bar chart
     //
-    PCA_ANALYSIS(ALIGNMENT_DISTANCES.out.distance_matrices)
+    if (params.distance_type == 'seq_distance') {
+        PCA_ANALYSIS(ALIGNMENT_DISTANCES.out.seq_identity_matrices)
+    } else {
+        PCA_ANALYSIS(ALIGNMENT_DISTANCES.out.distance_matrices)
+    }
     ch_versions = ch_versions.mix(PCA_ANALYSIS.out.versions)
     //
     // SUBWORKFLOW: Sequence identity matrices and heatmaps from MAFFT and MMseqs2

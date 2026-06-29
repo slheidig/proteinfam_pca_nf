@@ -17,11 +17,14 @@ process SEQUENCE_IDENTITY_MATRIX {
     container 'docker.io/slheidig/og_b2b_pca:latest'
 
     input:
-    tuple val(meta), path(ali_file), path(cluster_csv), val(mode), path(sequence_identity_matrix_script), path(ref_matrix), path(sequence_order)
+    tuple val(meta), path(ali_file), val(mode), path(sequence_identity_matrix_script)
+    path cluster_csv, optional: true
+    path ref_matrix, optional: true
+    path sequence_order, optional: true
 
     output:
     tuple val(meta), path("${meta.id}_${mode}_identity_matrix.csv")  , emit: matrix
-    tuple val(meta), path("${meta.id}_${mode}_identity_heatmap.png") , emit: heatmap
+    tuple val(meta), path("${meta.id}_${mode}_identity_heatmap.png"), optional: true, emit: heatmap
     path 'versions.yml'                                               , emit: versions
 
     script:
@@ -31,7 +34,7 @@ process SEQUENCE_IDENTITY_MATRIX {
     
     """
     
-    python3 sequence_identity_matrix.py \\
+    python3 ${sequence_identity_matrix_script} \\
         --ali         ${ali_file} \\
         --mode        ${mode} \\
         --og-id       ${meta.id} \\

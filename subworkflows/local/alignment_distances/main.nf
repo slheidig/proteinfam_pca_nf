@@ -14,6 +14,7 @@
 include { MAFFT               } from '../../../modules/local/mafft/main'
 include { MMSEQS2_EASYSEARCH  } from '../../../modules/local/mmseqs2_easysearch/main'
 include { B2B_DISTANCE_MATRIX } from '../../../modules/local/b2b_distance_matrix/main'
+include { SEQUENCE_IDENTITY_MATRIX } from '../../../modules/local/sequence_identity_matrix/main'
 
 workflow ALIGNMENT_DISTANCES {
 
@@ -23,38 +24,44 @@ workflow ALIGNMENT_DISTANCES {
 
     main:
     ch_versions = Channel.empty()
+    def script_file = file("${workflow.projectDir}/bin/sequence_identity_matrix.py")
 
+    if (params.aligned) {
+        ch_mafft_out = ch_og_fastas.map { meta, fasta -> [meta, fasta] }
+        ch_mmseqs_out = ch_og_fastas.map { meta, fasta -> [meta, fasta] }
+    } else {
    //
-    // Global MSA — MAFFT with --reorder (run per OG)
-    //
-    MAFFT(ch_og_fastas)
-    ch_versions = ch_versions.mix(MAFFT.out.versions)
+        // Global MSA — MAFFT with --reorder (run per OG)
+        //
+        MAFFT(ch_og_fastas)
+        ch_versions = ch_versions.mix(MAFFT.out.versions)
+
+        //
+        // MAFFT output: preserve original meta for join compatibility
+        //
+        ch_mafft_out = MAFFT.out.alignment
+            .map { meta, aln_file ->
+                [ meta, aln_file ]
+            }
+
+        //
+        // Pairwise alignment — MMseqs2 easy-search all-vs-all per OG
+        //
+        MMSEQS2_EASYSEARCH(ch_og_fastas)
+        ch_versions = ch_versions.mix(MMSEQS2_EASYSEARCH.out.versions)
+
+        //
+        // MMSEQS2 output: preserve original meta for join compatibility
+        //
+        ch_mmseqs_out = MMSEQS2_EASYSEARCH.out.pairali
+            .map { meta, pairali_file ->
+                [ meta, pairali_file ]
+            }
+    }
+
 
     //
-    // MAFFT output: preserve original meta for join compatibility
-    //
-    ch_mafft_out = MAFFT.out.alignment
-        .map { meta, aln_file ->
-            [ meta, aln_file ]
-        }
-
-    //
-    // Pairwise alignment — MMseqs2 easy-search all-vs-all per OG
-    //
-    MMSEQS2_EASYSEARCH(ch_og_fastas)
-    ch_versions = ch_versions.mix(MMSEQS2_EASYSEARCH.out.versions)
-
-    //
-    // MMSEQS2 output: preserve original meta for join compatibility
-    //
-    ch_mmseqs_out = MMSEQS2_EASYSEARCH.out.pairali
-        .map { meta, pairali_file ->
-            [ meta, pairali_file ]
-        }
-
-
-    //
-    // Join b2b TSV with MAFFT alignment (key: meta.id)
+    // Join b2b TSV with alignment (key: meta.id)
     // Augment meta with mode so output filenames and PCA labels are unambiguous.
     //
     ch_b2b_mafft = ch_og_b2b
@@ -64,12 +71,12 @@ workflow ALIGNMENT_DISTANCES {
         }
 
     //
-    // Join b2b TSV with MMseqs2 pairwise alignment TSV
+    // Join b2b TSV with alignment (for mmseqs2 mode, use same file)
     //
     ch_b2b_mmseqs = ch_og_b2b
         .join(ch_mmseqs_out)
-        .map { meta, b2b_tsv, pairali_tsv ->
-            [ meta.plus([mode: 'mmseqs2']), b2b_tsv, pairali_tsv, 'mmseqs2' ]
+        .map { meta, b2b_tsv, aln_fa ->
+            [ meta.plus([mode: 'mmseqs2']), b2b_tsv, aln_fa, 'mmseqs2' ]
         }
 
     //
@@ -78,8 +85,25 @@ workflow ALIGNMENT_DISTANCES {
     B2B_DISTANCE_MATRIX(ch_b2b_mafft.mix(ch_b2b_mmseqs))
     ch_versions = ch_versions.mix(B2B_DISTANCE_MATRIX.out.versions)
 
+    //
+    // Compute sequence identity matrices (for seq_distance option)
+    //
+    ch_mafft_with_mode = ch_mafft_out.map { meta, aln_file -> [ meta.plus([mode: 'mafft']), aln_file ] }
+    ch_mmseqs_with_mode = ch_mmseqs_out.map { meta, pairali_file -> [ meta.plus([mode: 'mmseqs2']), pairali_file ] }
+    
+    ch_identity_inputs = ch_mafft_with_mode
+        .map { meta, aln_file -> [ meta, aln_file, meta.mode, script_file ] }
+        .mix(
+            ch_mmseqs_with_mode
+                .map { meta, pairali_file -> [ meta, pairali_file, meta.mode, script_file ] }
+        )
+    
+    SEQUENCE_IDENTITY_MATRIX(ch_identity_inputs)
+    ch_versions = ch_versions.mix(SEQUENCE_IDENTITY_MATRIX.out.versions)
+
     emit:
     distance_matrices = B2B_DISTANCE_MATRIX.out.matrix  // channel: [ val(meta), path(*_b2b_dist.csv) ]
+    seq_identity_matrices = SEQUENCE_IDENTITY_MATRIX.out.matrix  // channel: [ val(meta), path(*_identity_matrix.csv) ]
     mafft_alignments  = ch_mafft_out                       // channel: [ val(meta), path(*_aln.fa) ]
     mmseqs_pairali    = ch_mmseqs_out                     // channel: [ val(meta), path(*_pairali.tsv) ]
     versions          = ch_versions
