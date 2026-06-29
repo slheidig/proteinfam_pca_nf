@@ -10,11 +10,11 @@ For MAFFT: Calculate sequence identity from the MSA for every pair of sequences.
 
 For MMseqs2: Read pairwise sequence identity from the pident column (second-last column).
   - If a pair is missing, leave as NaN
-  - NaN values are masked grey in the heatmap
 
 Output:
   - Full NxN matrix CSV: {og_id}_{mode}_identity_matrix.csv
-  - Heatmap PNG: {og_id}_{mode}_identity_heatmap.png
+  
+Note: Heatmap generation is handled by plot_both_heatmaps.py.
 """
 
 from __future__ import annotations
@@ -24,7 +24,6 @@ import itertools
 import sys
 from pathlib import Path
 
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
@@ -39,14 +38,8 @@ def parse_args() -> argparse.Namespace:
                   help="Orthogroup ID for naming output files")
     p.add_argument("--out-matrix", required=True,
                   help="Output CSV matrix file path")
-    p.add_argument("--out-heatmap", required=True,
-                  help="Output heatmap PNG file path")
-    p.add_argument("--cluster-labels", default=None,
-                  help="Optional CSV file with cluster labels (sequence_id,cluster columns)")
     p.add_argument("--ref-matrix", default=None,
                   help="Optional reference distance matrix CSV to use for sequence ordering")
-    p.add_argument("--sequence-order", default=None,
-                  help="Optional file with sequence order (one sequence ID per line) to use for heatmap sorting")
     return p.parse_args()
 
 
@@ -358,48 +351,28 @@ def main() -> int:
             all_ids = set()
         
         if not all_ids:
-            # Try to get seq_ids from cluster labels if available
-            if args.cluster_labels:
-                try:
-                    df = pd.read_csv(args.cluster_labels, dtype=str)
-                    if "sequence_id" in df.columns:
-                        all_ids = set(df["sequence_id"].dropna().unique())
-                except Exception:
-                    pass
-        
-        if not all_ids:
             print("Error: No sequence IDs found in MMseqs2 output", file=sys.stderr)
             return 1
         
         seq_ids_from_ali = sorted(all_ids)
         pair_results = pair_map  # Already in frozenset format
     
-    # Determine sequence ordering
-    # Priority: 1) explicit sequence order file, 2) reference matrix, 3) cluster labels, 4) sorted from alignment
-    sequence_order = None
+    # Use sequence order from alignment by default
+    seq_ids = seq_ids_from_ali
     
-    if args.sequence_order and Path(args.sequence_order).exists():
-        # Load explicit sequence order from file
-        sequence_order = load_sequence_order(args.sequence_order, seq_ids_from_ali)
-        if sequence_order:
-            seq_ids = sequence_order
-        else:
-            seq_ids = seq_ids_from_ali
-    elif args.ref_matrix and Path(args.ref_matrix).exists():
-        # Use the row/column order from the reference distance matrix
+    # If ref_matrix is provided, use its sequence order
+    if args.ref_matrix and Path(args.ref_matrix).exists():
         try:
             ref_df = pd.read_csv(args.ref_matrix, index_col=0)
-            seq_ids = ref_df.index.tolist()
-            # Also check columns match index
-            if list(ref_df.columns) != seq_ids:
-                # If columns differ, use sorted union
-                all_seqs = list(dict.fromkeys(list(ref_df.index) + list(ref_df.columns)))
-                seq_ids = sorted(all_seqs)
+            ref_seq_ids = ref_df.index.tolist()
+            # Use the reference matrix sequence order, but filter to sequences in alignment
+            seq_ids = [sid for sid in ref_seq_ids if sid in seq_ids_from_ali]
+            # Add any missing sequences from alignment
+            for sid in seq_ids_from_ali:
+                if sid not in seq_ids:
+                    seq_ids.append(sid)
         except Exception:
-            # Fall back to sorted from alignment
             seq_ids = seq_ids_from_ali
-    else:
-        seq_ids = seq_ids_from_ali
     
     # Filter pair_results to only include sequences in our final seq_ids list
     if args.mode == "mafft":
@@ -414,24 +387,11 @@ def main() -> int:
     # Build full matrix with the determined sequence order
     matrix = build_matrix(filtered_results, seq_ids, args.mode)
     
-    # Load cluster labels for sorting (if no sequence_order or ref_matrix was used)
-    labels = None
-    if not args.sequence_order and not args.ref_matrix:
-        labels = load_cluster_labels(args.cluster_labels, seq_ids)
-    
     # Save matrix CSV
-
     matrix = matrix.round(4)
     matrix.to_csv(args.out_matrix, index=True)
     
-    # Generate heatmap
-    # If we have an explicit sequence_order, use it; otherwise use cluster labels
-    if sequence_order:
-        plot_identity_heatmap(matrix, None, sequence_order, args.og_id, args.mode, args.out_heatmap)
-    else:
-        plot_identity_heatmap(matrix, labels, None, args.og_id, args.mode, args.out_heatmap)
-    
-    print(f"Successfully created identity matrix and heatmap for {args.og_id} ({args.mode})")
+    print(f"Successfully created identity matrix for {args.og_id} ({args.mode})")
     return 0
 
 

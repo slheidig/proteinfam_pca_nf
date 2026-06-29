@@ -23,9 +23,8 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--out-plot", required=True)
     p.add_argument("--out-clusters", required=True)
     p.add_argument("--out-meta", required=True)
-    p.add_argument("--out-heatmap", required=True)
     p.add_argument("--out-sequence-order", required=True,
-                   help="Output file path for sequence order used in heatmap")
+                   help="Output file path for sequence order used by heatmap script")
     p.add_argument("--external-labels", default=None,
                    help="TSV file with columns og_id,gene_id,<label1>,<label2>,... for external labels")
     p.add_argument("--summary-dir", default="test_results/summary",
@@ -52,67 +51,6 @@ def silhouette_pvalue(x: np.ndarray, labels: np.ndarray, observed_sil: float, n_
         if s >= observed_sil:
             count += 1
     return (count + 1) / (n_perm + 1)
-
-
-def plot_heatmap(
-    mat: pd.DataFrame,
-    labels: np.ndarray,
-    og_id: str,
-    mode: str,
-    out_path: str,
-    out_sequence_order_path: str | None = None,
-) -> None:
-    """Save a heatmap of the distance matrix with rows/cols sorted by cluster label.
-    
-    If out_sequence_order_path is provided, also saves the sequence order to that file.
-    """
-    order = np.argsort(labels, kind="stable")
-    sorted_vals = mat.values[np.ix_(order, order)]
-    # Mask NaN values so they are rendered in a distinct color (grey)
-    masked_vals = np.ma.masked_invalid(sorted_vals)
-    sorted_ids = [mat.index[i] for i in order]
-    sorted_labels = labels[order]
-    
-    # Save sequence order to file if requested
-    if out_sequence_order_path is not None:
-        with open(out_sequence_order_path, "w") as f:
-            for sid in sorted_ids:
-                f.write(f"{sid}\n")
-
-    n = len(sorted_ids)
-    size = max(5, n * 0.35)
-    fig, ax = plt.subplots(figsize=(size, size * 0.85))
-
-    cmap = plt.cm.get_cmap("viridis_r")
-    try:
-        cmap = cmap.copy()
-    except Exception:
-        # Some colormap objects may not support copy; fall back to mutating
-        pass
-    cmap.set_bad(color="lightgrey")
-    im = ax.imshow(masked_vals, aspect="auto", cmap=cmap, interpolation="none")
-    plt.colorbar(im, ax=ax, label="B2B distance", fraction=0.046, pad=0.04)
-
-    ax.set_xticks(range(n))
-    ax.set_xticklabels(sorted_ids, rotation=90, fontsize=4)
-    ax.set_yticks(range(n))
-    ax.set_yticklabels(sorted_ids, fontsize=4)
-    ax.tick_params(axis="x", pad=0.1, length=0)
-    ax.tick_params(axis="y", pad=0.1, length=0)
-
-    # Red lines at cluster boundaries
-    prev = sorted_labels[0]
-    for i, lab in enumerate(sorted_labels[1:], start=1):
-        if lab != prev:
-            ax.axhline(i - 0.5, color="red", lw=1.0)
-            ax.axvline(i - 0.5, color="red", lw=1.0)
-            prev = lab
-
-    ax.set_title(f"{og_id} | {mode} | distance matrix (sorted by cluster)")
-    plt.tight_layout()
-    size = max(5, min(n * 0.35, 20)) 
-    plt.savefig(out_path, dpi=250)
-    plt.close(fig)
 
 
 def map_categories(labels: pd.Series) -> np.ndarray:
@@ -434,9 +372,19 @@ def main() -> int:
     plt.savefig(args.out_plot, dpi=150)
     plt.close(fig)
 
-    # Heatmap of the distance matrix: use the raw matrix so original NaNs
-    # are visible and will be masked (shown in grey).
-    plot_heatmap(mat_raw, labels, args.og_id, args.mode, args.out_heatmap, args.out_sequence_order)
+    # Save sequence order for heatmap script (sorted by cluster)
+    # Sort sequences by cluster label to group clusters together in heatmaps
+    if k > 1 and labels is not None and len(labels) == len(seq_ids):
+        # Create a list of (cluster, index, seq_id) tuples and sort by cluster
+        indexed_seqs = [(labels[i], i, seq_ids[i]) for i in range(len(seq_ids))]
+        indexed_seqs.sort(key=lambda x: x[0])  # Sort by cluster label
+        sorted_seq_ids = [seq[2] for seq in indexed_seqs]
+    else:
+        sorted_seq_ids = seq_ids
+    
+    with open(args.out_sequence_order, "w") as f:
+        for sid in sorted_seq_ids:
+            f.write(f"{sid}\n")
 
     return 0
 

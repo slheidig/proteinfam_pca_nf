@@ -2,3 +2,5 @@ test_results/
 .nextflow*
 slurm*
 *.zip
+
+work/

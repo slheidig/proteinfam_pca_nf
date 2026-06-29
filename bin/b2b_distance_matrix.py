@@ -35,6 +35,12 @@ def read_b2b_backbone(path: str) -> Dict[str, List[float]]:
         if group.empty:
             backbone_by_seq[str(sid)] = []
             continue
+        # Filter out NaN and infinite values from residue_index
+        group = group.dropna(subset=["residue_index"])
+        group = group[~group["residue_index"].isin([float('inf'), float('-inf')])]
+        if group.empty:
+            backbone_by_seq[str(sid)] = []
+            continue
         positions = group["residue_index"].astype(int).to_numpy()
         values = group["backbone"].astype(float).to_numpy()
         max_pos = int(positions.max())
